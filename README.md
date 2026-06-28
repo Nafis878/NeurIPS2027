@@ -78,6 +78,16 @@ even when a 70M model scores ~0 EM.
    !python scripts/10_cure_bakeoff.py        --config configs/default.yaml
    ```
 
+   **Multi-seed robustness (recommended before quoting numbers).** GPU runs vary seed-to-seed,
+   so report mean±std over ≥3 seeds:
+   ```python
+   !python scripts/09_fingerprint.py  --config configs/default.yaml --label pythia-70m --seeds 0,1,2
+   !python scripts/10_cure_bakeoff.py --config configs/default.yaml --seeds 0,1,2
+   ```
+   `09 --seeds` re-runs Step-0 + standard FT per seed and reports the architectural-region Spearman
+   as mean±std plus the fraction of seeds with ρ>0; `10 --seeds` reports each arm's middle/avg/worst
+   as mean±std (`cure_bakeoff_seeds.csv` keeps the per-seed rows).
+
    **Depth law (Claim 1, causal):** Pythia models share the GPT-NeoX tokenizer, so the dataset is
    reused across sizes. For each size, re-measure Step-0 + standard FT + fingerprint, then aggregate:
    ```python

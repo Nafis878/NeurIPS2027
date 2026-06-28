@@ -80,7 +80,10 @@ lost-in-the-middle.
   beyond a T4 and is the stated next step. Net: the fingerprint is a strong **diagnostic**; as a
   **design target** it is actionable via data (anchors) but not via post-hoc residual surgery.
 - **Caveat:** single seed; absolute accuracies vary run-to-run on GPU (this run's `standard` avg=0.013
-  vs the earlier sweep's 0.162). Within-session rankings are the reliable signal. Multi-seed needed.
+  vs the earlier sweep's 0.162). Within-session rankings are the reliable signal.
+- **Multi-seed harness now available** (`09 --seeds 0,1,2`, `10 --seeds 0,1,2`): reports the
+  fingerprint Spearman and each cure arm's accuracy as mean±std (+ win-rate), so N1 and the anchors
+  result can be made statistically defensible. Run this before quoting final numbers.
 
 ## Foundation (Phase-1, done): "Found in the Middle by Design"
 

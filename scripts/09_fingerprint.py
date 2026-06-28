@@ -10,9 +10,11 @@ Fingerprint definition: the Step-0 GLOBAL per-token influence profile (U-shaped:
 tail + recency anchor), interpolated at each evaluation bucket's normalized position. (The
 fact-location `influence_at_answer` is primacy-only and is reported too, for contrast.)
 
-Two modes:
+Modes:
   default            compute the fingerprint for the current tables, write fingerprint_<label>.csv
   --depth-trend      aggregate all fingerprint_*.csv into depth_trend.csv/png (the depth law)
+  --seeds 0,1,2      re-run Step-0 + standard FT + fingerprint for each seed and report the
+                     architectural-region Spearman as mean +/- std (statistical robustness)
 """
 import argparse
 import csv
@@ -22,8 +24,10 @@ import os
 import numpy as np
 
 import _bootstrap  # noqa: F401
-from src import influence, plotting
-from src.utils import (load_config, repo_path, ensure_dir, read_json, write_csv)
+from src import data, evaluate, influence, plotting, train as train_mod
+from src.utils import (load_config, apply_overrides, set_seed, pick_device,
+                       load_model_tokenizer, read_jsonl, repo_path, ensure_dir,
+                       read_json, write_csv)
 
 
 def _read_eval_csv(path):
@@ -164,6 +168,72 @@ def _middle(acc, pos, lo=0.4, hi=0.6):
     return round(sum(vals) / len(vals), 4) if vals else float("nan")
 
 
+def _fingerprint_one_seed(cfg, device, examples, seed, region_thr, metric):
+    """Re-run Step-0 influence + standard FT + eval for one seed and return the fingerprint stats."""
+    set_seed(seed)
+    cfg = dict(cfg)
+    cfg["seed"] = seed
+
+    # Step-0 (random-init) influence -> global profile (the fingerprint source)
+    m0, _, _ = load_model_tokenizer(cfg, device, for_training=False, init_random=True, seed=seed)
+    inf0 = influence.run_influence(m0, None, examples, device, cfg, verbose=False, metric=metric)
+    del m0
+    bc = np.asarray(inf0["bin_centers"], float)
+    gp = np.asarray(inf0["global_profile"], float)
+
+    # Standard fine-tune -> trained accuracy by position
+    m, tok, _ = load_model_tokenizer(cfg, device, for_training=True)
+    train_mod.train(m, tok, examples, device, cfg, weight_fn=None, seed=seed, verbose=False)
+    ev = evaluate.run_eval(m, tok, examples, device, cfg, verbose=False)
+    del m
+
+    pos = [r["mean_norm_pos"] for r in ev["by_bucket"]]
+    acc = [r["accuracy"] for r in ev["by_bucket"]]
+    fp = [float(np.interp(p, bc, gp)) for p in pos]
+    arch = [(f, a) for f, a, p in zip(fp, acc, pos) if p <= region_thr]
+    s_arch = influence.spearman([f for f, _ in arch], [a for _, a in arch])
+    s_full = influence.spearman(fp, acc)
+    late = [a for a, p in zip(acc, pos) if p >= 0.8]
+    mid = [a for a, p in zip(acc, pos) if 0.4 <= p <= 0.6]
+    recency = (sum(late) / len(late) - sum(mid) / len(mid)) if late and mid else float("nan")
+    vd = influence.valley_metrics(bc, gp, float(cfg["influence"]["middle_low"]),
+                                  float(cfg["influence"]["middle_high"]))["valley_depth"]
+    return {"seed": seed, "spearman_arch_region": round(s_arch["rho"], 4),
+            "p_arch_region": round(s_arch["p"], 4), "spearman_full_range": round(s_full["rho"], 4),
+            "recency_gap": round(recency, 4), "step0_valley_depth": round(vd, 4),
+            "trained_middle_acc": round(_middle(acc, pos), 4)}
+
+
+def run_seeds(cfg, device, examples, seeds, label, region_thr, metric):
+    rows = [_fingerprint_one_seed(cfg, device, examples, s, region_thr, metric) for s in seeds]
+    tables = ensure_dir(repo_path(cfg["eval"]["out_tables"]))
+    write_csv(os.path.join(tables, f"fingerprint_seeds_{label}.csv"), rows)
+
+    def _ms(key):
+        vals = [r[key] for r in rows if r[key] == r[key]]  # drop NaN
+        arr = np.asarray(vals, float)
+        return (round(float(arr.mean()), 4), round(float(arr.std(ddof=1)), 4) if len(arr) > 1 else 0.0)
+
+    arch_m, arch_s = _ms("spearman_arch_region")
+    full_m, full_s = _ms("spearman_full_range")
+    rec_m, rec_s = _ms("recency_gap")
+    summary = [{"label": label, "n_seeds": len(seeds), "metric": metric,
+                "spearman_arch_mean": arch_m, "spearman_arch_std": arch_s,
+                "spearman_full_mean": full_m, "spearman_full_std": full_s,
+                "recency_gap_mean": rec_m, "recency_gap_std": rec_s,
+                "win_rate_arch_gt_0": round(np.mean([r["spearman_arch_region"] > 0 for r in rows]), 3)}]
+    write_csv(os.path.join(tables, f"fingerprint_multiseed_{label}.csv"), summary)
+    print(f"\n[09] MULTI-SEED fingerprint ({label}, n={len(seeds)}):")
+    for r in rows:
+        print(f"   seed {r['seed']}: arch_rho={r['spearman_arch_region']:.3f} "
+              f"(p={r['p_arch_region']:.3f}) full={r['spearman_full_range']:.3f} "
+              f"recency_gap={r['recency_gap']:.3f}")
+    print(f"[09] arch-region Spearman = {arch_m:.3f} +/- {arch_s:.3f}  "
+          f"(full-range {full_m:.3f} +/- {full_s:.3f}); recency_gap {rec_m:.3f} +/- {rec_s:.3f}")
+    print(f"[09] => birthright legible: {summary[0]['win_rate_arch_gt_0']*100:.0f}% of seeds have arch_rho>0")
+    return summary
+
+
 def run_depth_trend(cfg):
     tables = repo_path(cfg["eval"]["out_tables"])
     plots = ensure_dir(repo_path(cfg["eval"]["out_plots"]))
@@ -198,11 +268,24 @@ def main():
     ap.add_argument("--trained-tag", type=str, default="standard_finetune")
     ap.add_argument("--depth-trend", action="store_true",
                     help="Aggregate all fingerprint_*_summary.csv into the depth-law trend.")
+    ap.add_argument("--seeds", type=str, default=None,
+                    help="Comma-separated seeds (e.g. 0,1,2) to compute the fingerprint as "
+                         "mean+/-std by re-running Step-0 + standard FT per seed.")
+    ap.add_argument("--model", type=str, default=None)
     args = ap.parse_args()
 
     cfg = load_config(args.config, smoke=args.smoke)
+    cfg = apply_overrides(cfg, {"model": args.model})
     if args.depth_trend:
         run_depth_trend(cfg)
+    elif args.seeds:
+        seeds = [int(s) for s in args.seeds.split(",") if s.strip() != ""]
+        device = pick_device()
+        examples = read_jsonl(os.path.join(repo_path(cfg["data"]["out_dir"]),
+                                           data.dataset_filename(cfg)))
+        region_thr = float(cfg.get("fingerprint", {}).get("region_threshold", 0.7))
+        metric = cfg["influence"].get("metric", "answer_grad")
+        run_seeds(cfg, device, examples, seeds, args.label, region_thr, metric)
     else:
         run_single(cfg, args.label, args.step0_tag, args.trained_tag)
 
