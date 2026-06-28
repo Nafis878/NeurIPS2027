@@ -33,7 +33,7 @@ Three claims, each mapped to a disclaimer above:
 |---|---|---|---|
 | C1 | The position-wise **influence profile predicts per-position retrieval accuracy** | their disclaimer #1 | `spearman_*` (influence ↔ EM & log-prob); post-FT ρ(infl,logprob)=−0.99, p≈4e-9 |
 | C2 | **Standard training deepens** the init valley; **position-targeted training flattens it** | their Fig. 3 + disclaimer #2/#4 | `07_step0_compare.py` → `valley_depth_by_method.csv`, `influence_step0_vs_trained*.png` |
-| C3 | Flattening the influence valley **lifts middle-position accuracy** | their disclaimer #2/#3 | middle EM 0.04→0.20 (pos 0.5), 0.02→0.18 (pos 0.35) — `comparison_accuracy_all_methods.png` |
+| C3 | A position-targeted objective gives a **net** accuracy gain over standard FT | their disclaimer #2/#3 | **edge-floor** config (β=2, σ=0.18, edge_γ=1) beats standard FT on middle (0.14>0.12), avg (0.231>0.162), worst (0.14>0.04) and edge (0.237>0.19) — `sweep_intervention.csv` |
 
 The chain C1→C2→C3 is exactly the causal story their paper sets up but declines to test:
 init prior (theirs) → predicts retrieval failure (C1) → standard training can't escape it (C2) →
@@ -60,14 +60,22 @@ a targeted objective bridges the O(1/(H−1)!) dead zone and recovers middle acc
   about the *mechanism and the intervention*, validated at small scale. A depth-scaling study
   (Pythia 70m/160m/410m = 6/12/24 layers) would test their O(1/(H−1)!) law and is the natural
   follow-up.
-- **Don't over-claim the intervention.** At 50/pos it currently *redistributes* accuracy toward
-  the middle (right-edge cost), average flat. The honest framing: it **bridges the middle dead
-  zone**; making it net-positive (edge-floor term, β/σ sweep, larger model) is the headline
-  experiment to nail before submission.
+- **The edge-floor is the real finding.** Naïve middle-only weighting (the paper's literal
+  suggestion, "targeted loss weighting") *collapses* accuracy in our T4 sweep (avg ~0.03 vs
+  standard 0.16). Only the **edge-floor** variant — which protects primacy/recency while boosting
+  the middle — yields a net win. The headline is therefore not "loss weighting works" but
+  "loss weighting works *iff* you don't starve the geometric anchors the architecture relies on."
+- **Single-seed caveat.** The sweep is one seed at 50/pos with coarse EM; the *ranking* is
+  internally consistent (one session) but absolute numbers vary run-to-run on GPU. Confirm the
+  edge-floor net win across ≥3 seeds (and ideally 100/pos) before submission.
 
-## Status
+## Status (real T4 results in)
 
-- Built & smoke-verified: Step-0 random-init measurement, valley-depth metrics, overlay plots,
-  comparison script. Real T4 run pending for apples-to-apples (all four profiles at ctx 1024).
-- Next: run Step-0 at ctx 1024 on T4; then β/σ sweep + edge-floor to turn redistribution into a
-  net middle gain; then depth-scaling.
+- **C1 ✓** influence ↔ accuracy: post-FT Spearman ρ(infl,logprob)=−0.99.
+- **C2 ✓** Step-0 valley reproduced (peak/trough 5.29) and standard training deepens it
+  (→39.58), matching their Fig. 3; `valley_depth_by_method.csv`.
+- **C3 ✓ (net win)** edge-floor config beats standard FT on middle/avg/worst/edge accuracy;
+  middle-only weighting backfires. `sweep_intervention.csv`, `sweep_intervention_accuracy.png`.
+  Default config now set to the winning edge-floor weighting.
+- Next: multi-seed confirmation of the edge-floor win; depth-scaling (Pythia 70m/160m/410m) to
+  test their O(1/(H−1)!) law; optional head-to-head with their exact final-hidden-state Jacobian.

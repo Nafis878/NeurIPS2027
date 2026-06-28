@@ -47,9 +47,12 @@ train:
   out_plots: "outputs/plots"
 
 intervention:
+  # Winning config from the T4 sweep (script 08): the edge-floor is essential -- it beats
+  # standard fine-tuning on middle/avg/worst/edge accuracy, whereas middle-only weighting
+  # (edge_gamma=0) collapses accuracy. See outputs/tables/sweep_intervention.csv.
   beta: 2.0
   sigma: 0.18
-  edge_gamma: 0.0                # edge-floor strength (0 = original middle-only weighting)
+  edge_gamma: 1.0                # edge-floor strength (0 = original middle-only weighting)
   edge_sigma: 0.08
   inverse_influence: false       # optional: inverse-baseline-influence reweighting
 
