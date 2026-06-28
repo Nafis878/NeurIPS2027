@@ -72,6 +72,41 @@ def plot_global_profile(bin_centers: List[float], profile: List[float], out_path
     return out_path
 
 
+def plot_profiles_overlay(profiles: Dict[str, Any], out_path: str, title: str,
+                          anchor_recency: bool = False):
+    """Overlay several global influence profiles. ``profiles`` maps name -> (bin_centers, profile).
+
+    If ``anchor_recency`` the recency anchor (x=1) of each profile is normalized to 1.0
+    (the paper's Figure 3 view), which exposes the *relative* depth of the middle valley.
+    """
+    _ensure(out_path)
+    order = ["step0_init", "baseline", "standard_finetune", "intervention"]
+    colors = {"step0_init": "#9467bd", "baseline": "#1f77b4",
+              "standard_finetune": "#ff7f0e", "intervention": "#d62728"}
+    labels = {"step0_init": "random init (Step 0)", "baseline": "pretrained",
+              "standard_finetune": "standard FT", "intervention": "middle-weighted"}
+    fig, ax = plt.subplots(figsize=(7.5, 4.7))
+    keys = [k for k in order if k in profiles] + [k for k in profiles if k not in order]
+    for name in keys:
+        bc, prof = profiles[name]
+        import numpy as np
+        prof = np.asarray(prof, dtype=float)
+        if anchor_recency and prof[-1] > 0:
+            prof = prof / prof[-1]
+        ax.plot(bc, prof, "o-", label=labels.get(name, name), color=colors.get(name))
+    ax.axvspan(0.4, 0.6, color="orange", alpha=0.12, label="middle band")
+    ax.set_xlabel("Normalized context position")
+    ax.set_ylabel("Recency-anchored influence" if anchor_recency else "Mean gradient norm")
+    ax.set_title(title)
+    ax.set_xlim(0, 1)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+    return out_path
+
+
 def plot_loss_curve(history: List[Dict[str, Any]], out_path: str, title: str):
     _ensure(out_path)
     steps = [h["step"] for h in history]

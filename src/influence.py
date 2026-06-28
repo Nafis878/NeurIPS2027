@@ -131,6 +131,30 @@ def run_influence(model, tokenizer, examples, device, cfg, verbose=True) -> Dict
     }
 
 
+def valley_metrics(bin_centers, profile, mid_lo: float = 0.4, mid_hi: float = 0.6) -> Dict[str, float]:
+    """Quantify the depth of the lost-in-the-middle influence valley for one profile.
+
+    Engages the paper's claim directly: a deep valley = a strong architectural position
+    bias. We report the relative valley depth (1 - middle/edge), the recency-anchored
+    middle floor (paper's Figure 3 normalization), peak-to-trough, and middle mass.
+    """
+    bc = np.asarray(bin_centers, dtype=float)
+    p = np.asarray(profile, dtype=float)
+    middle_mask = (bc >= mid_lo) & (bc <= mid_hi)
+    edge = max(float(p[0]), float(p[-1]))           # higher of primacy / recency anchor
+    middle = float(p[middle_mask].mean()) if middle_mask.any() else float("nan")
+    recency = float(p[-1])
+    trough = float(p[p > 0].min()) if (p > 0).any() else 1e-12
+    return {
+        "edge_peak": edge,
+        "middle_floor": middle,
+        "valley_depth": float(1.0 - middle / edge) if edge > 0 else float("nan"),
+        "middle_over_recency": float(middle / recency) if recency > 0 else float("nan"),
+        "peak_to_trough": float(p.max() / trough),
+        "middle_mass": float(p[middle_mask].sum() / p.sum()) if p.sum() > 0 else float("nan"),
+    }
+
+
 def spearman(xs: List[float], ys: List[float]) -> Dict[str, float]:
     """Spearman correlation; returns rho + p (NaN-safe for tiny/degenerate inputs)."""
     from scipy.stats import spearmanr

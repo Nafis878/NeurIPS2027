@@ -22,35 +22,41 @@ def main():
     ap.add_argument("--config", default=repo_path("configs", "default.yaml"))
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--model", type=str, default=None)
-    ap.add_argument("--tag", type=str, default="baseline")
+    ap.add_argument("--tag", type=str, default=None)
     ap.add_argument("--checkpoint", type=str, default=None)
+    ap.add_argument("--init-random", action="store_true",
+                    help="Measure the Step-0 architectural prior on a RANDOMLY-INITIALIZED "
+                         "(untrained) model instead of the pretrained one.")
     args = ap.parse_args()
 
     cfg = load_config(args.config, smoke=args.smoke)
     cfg = apply_overrides(cfg, {"model": args.model})
     set_seed(cfg["seed"])
 
+    tag = args.tag or ("step0_init" if args.init_random else "baseline")
+
     examples = _load_dataset(cfg)
     device = pick_device()
     if args.checkpoint:
         cfg = dict(cfg)
         cfg["model"] = dict(cfg["model"], name=args.checkpoint, fallback=None)
-    model, tokenizer, model_name = load_model_tokenizer(cfg, device, for_training=False)
+    model, tokenizer, model_name = load_model_tokenizer(
+        cfg, device, for_training=False, init_random=args.init_random, seed=cfg["seed"])
 
     result = influence.run_influence(model, tokenizer, examples, device, cfg)
 
     tables = ensure_dir(repo_path(cfg["influence"]["out_tables"]))
     plots = ensure_dir(repo_path(cfg["influence"]["out_plots"]))
-    write_jsonl(os.path.join(tables, f"influence_{args.tag}_per_example.jsonl"),
+    write_jsonl(os.path.join(tables, f"influence_{tag}_per_example.jsonl"),
                 result["per_example"])
     # strip large per-bucket profiles out of the CSV (kept in JSON)
     csv_rows = [{k: v for k, v in r.items() if k != "binned_profile"} for r in result["by_bucket"]]
-    write_csv(os.path.join(tables, f"influence_{args.tag}_by_position.csv"), csv_rows)
-    write_json(os.path.join(tables, f"influence_{args.tag}_full.json"), result)
-    save_run_config(cfg, tables, f"run_config_03_{args.tag}.json")
+    write_csv(os.path.join(tables, f"influence_{tag}_by_position.csv"), csv_rows)
+    write_json(os.path.join(tables, f"influence_{tag}_full.json"), result)
+    save_run_config(cfg, tables, f"run_config_03_{tag}.json")
 
     # Spearman vs. accuracy (and vs. logprob) if the eval table exists.
-    eval_csv = os.path.join(repo_path(cfg["eval"]["out_tables"]), f"eval_{args.tag}_by_position.csv")
+    eval_csv = os.path.join(repo_path(cfg["eval"]["out_tables"]), f"eval_{tag}_by_position.csv")
     corr = {}
     if os.path.exists(eval_csv) and os.path.getsize(eval_csv) > 0:
         import csv as _csv
@@ -68,7 +74,7 @@ def main():
             "spearman_influence_vs_accuracy": influence.spearman(infl_x, acc_y),
             "spearman_influence_vs_logprob": influence.spearman(infl_x, lp_y),
         }
-        write_json(os.path.join(tables, f"spearman_{args.tag}.json"), corr)
+        write_json(os.path.join(tables, f"spearman_{tag}.json"), corr)
     else:
         print(f"[03] (no eval table at {eval_csv}; run 02 to enable Spearman)")
 
@@ -84,12 +90,12 @@ def main():
     }
     plotting.plot_influence_vs_position(
         result["by_bucket"],
-        os.path.join(plots, fname_map.get(args.tag, f"influence_vs_position_{args.tag}.png")),
-        title_map.get(args.tag, f"Influence vs position ({args.tag})"))
+        os.path.join(plots, fname_map.get(tag, f"influence_vs_position_{tag}.png")),
+        title_map.get(tag, f"Influence vs position ({tag})"))
     plotting.plot_global_profile(
         result["bin_centers"], result["global_profile"],
-        os.path.join(plots, f"influence_global_profile_{args.tag}.png"),
-        f"Global per-token influence profile ({args.tag})")
+        os.path.join(plots, f"influence_global_profile_{tag}.png"),
+        f"Global per-token influence profile ({tag})")
 
     print(f"[03] model={model_name} global peak/trough={result['global_peak_to_trough']:.2f} "
           f"global middle mass={result['global_middle_mass']:.3f}")

@@ -164,10 +164,18 @@ def load_tokenizer(cfg: Dict[str, Any]):
     return tok, loaded
 
 
-def load_model_tokenizer(cfg: Dict[str, Any], device, for_training: bool = False):
-    """Load model + tokenizer with automatic fallback. Returns (model, tokenizer, name)."""
+def load_model_tokenizer(cfg: Dict[str, Any], device, for_training: bool = False,
+                         init_random: bool = False, seed: Optional[int] = None):
+    """Load model + tokenizer with automatic fallback. Returns (model, tokenizer, name).
+
+    If ``init_random`` is True the model is built fresh from the architecture config with
+    *random* weights (no pretrained checkpoint) -- this is the "Step 0" / initialization
+    state used to measure the architectural position-bias prior. The tokenizer is still
+    taken from the pretrained name so token ids are meaningful. ``seed`` makes the random
+    initialization reproducible.
+    """
     import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
     name = cfg["model"]["name"]
     fallback = cfg["model"].get("fallback")
@@ -177,7 +185,13 @@ def load_model_tokenizer(cfg: Dict[str, Any], device, for_training: bool = False
         tok = AutoTokenizer.from_pretrained(model_name)
         if tok.pad_token is None:
             tok.pad_token = tok.eos_token
-        mdl = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
+        if init_random:
+            if seed is not None:
+                torch.manual_seed(seed)
+            config = AutoConfig.from_pretrained(model_name)
+            mdl = AutoModelForCausalLM.from_config(config, torch_dtype=dtype)
+        else:
+            mdl = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
         mdl.to(device)
         return mdl, tok
 
@@ -192,7 +206,8 @@ def load_model_tokenizer(cfg: Dict[str, Any], device, for_training: bool = False
         loaded = fallback
 
     model.train(for_training)
-    print(f"[model] Loaded '{loaded}' | params={sum(p.numel() for p in model.parameters()):,} "
+    tag = "RANDOM-INIT (Step 0)" if init_random else "pretrained"
+    print(f"[model] Loaded '{loaded}' [{tag}] | params={sum(p.numel() for p in model.parameters()):,} "
           f"| dtype={dtype} | device={device}")
     return model, tokenizer, loaded
 

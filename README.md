@@ -27,6 +27,13 @@ whole context is the answer code, exact-match retrieval is a clean signal.
 | 4. Standard fine-tune | `04_train_standard.py` | `loss_curve_standard_finetune.png`, `*_standard_finetune.png` |
 | 5. Middle-weighted intervention | `05_train_middle_weighted.py` | `*_intervention.png` |
 | 6. Report + comparisons | `06_make_report.py` | `comparison_*.png`, `outputs/results_summary.md` |
+| 7. Step-0 vs trained valley | `07_step0_compare.py` | `influence_step0_vs_trained*.png`, `valley_depth_by_method.csv` |
+
+This project is positioned to **beat** "Lost in the Middle at Birth" (Chowdhury, arXiv:2603.10123)
+by answering its stated open question — see [docs/BEATING_THE_PAPER.md](docs/BEATING_THE_PAPER.md).
+Stage 7 reproduces the **Step-0 architectural valley** on a randomly-initialized model and shows
+that standard fine-tuning *deepens* it (their Fig. 3) while our middle-weighted intervention
+*flattens* it.
 
 Metrics: **exact-match (EM)** is primary; we also log a continuous sensitivity signal
 (**answer-token mean log-prob and rank**) so the influence↔accuracy Spearman stays informative
@@ -50,7 +57,13 @@ even when a 70M model scores ~0 EM.
    !python scripts/04_train_standard.py      --config configs/default.yaml
    !python scripts/05_train_middle_weighted.py --config configs/default.yaml
    !python scripts/06_make_report.py         --config configs/default.yaml
+   # Step-0 architectural-prior experiment (beats the paper's open question):
+   !python scripts/03_measure_influence.py   --config configs/default.yaml --init-random
+   !python scripts/07_step0_compare.py       --config configs/default.yaml
    ```
+   `--init-random` measures the influence valley on a randomly-initialized (untrained) model at
+   the **same context length** as the trained runs, so stage 7 compares all four profiles
+   (Step-0 / pretrained / standard-FT / intervention) apples-to-apples.
 5. Inspect `outputs/plots/*.png` and `outputs/results_summary.md`.
 
 **Scale up** (better statistics / longer context):
