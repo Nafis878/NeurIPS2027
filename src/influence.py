@@ -18,8 +18,18 @@ from typing import Any, Dict, List
 import numpy as np
 
 
-def _token_influence(model, ex, device):
-    """Return (influence[np.array over full seq], context_len) for one example."""
+def _token_influence(model, ex, device, metric: str = "answer_grad"):
+    """Return (influence[np.array over full seq], context_len) for one example.
+
+    metric:
+      "answer_grad" -- gradient of the answer log-prob w.r.t. each input embedding
+                       (task-grounded; primacy-dominated, since the recency anchor sits at
+                       the final readout token, not at a planted mid/late fact).
+      "jacobian"    -- the paper's input->output Jacobian: gradient of the final hidden
+                       state's L2 norm w.r.t. each input embedding. This carries BOTH the
+                       primacy tail and the residual recency anchor (a U-shape), so it is the
+                       right "position-bias fingerprint" of the architecture at initialization.
+    """
     import torch
     import torch.nn.functional as F
 
@@ -29,15 +39,20 @@ def _token_influence(model, ex, device):
 
     with torch.enable_grad():
         inputs_embeds = embed_layer(ids).detach().clone().requires_grad_(True)
-        logits = model(inputs_embeds=inputs_embeds).logits[0]  # [T, V]
-        logprobs = F.log_softmax(logits.float(), dim=-1)
-        start = len(ex["input_ids"])
-        n_ans = len(ex["answer_ids"])
-        obj = 0.0
-        for k in range(n_ans):
-            pos = start + k - 1
-            tgt = full[start + k]
-            obj = obj + logprobs[pos, tgt]
+        if metric == "jacobian":
+            out = model(inputs_embeds=inputs_embeds, output_hidden_states=True)
+            final_hidden = out.hidden_states[-1][0, -1]            # [H] final-token state
+            obj = 0.5 * (final_hidden.float() ** 2).sum()         # ||h_L||^2 / 2
+        else:
+            logits = model(inputs_embeds=inputs_embeds).logits[0]  # [T, V]
+            logprobs = F.log_softmax(logits.float(), dim=-1)
+            start = len(ex["input_ids"])
+            n_ans = len(ex["answer_ids"])
+            obj = 0.0
+            for k in range(n_ans):
+                pos = start + k - 1
+                tgt = full[start + k]
+                obj = obj + logprobs[pos, tgt]
         (grad,) = torch.autograd.grad(obj, inputs_embeds)
     influence = grad[0].detach().float().norm(dim=-1).cpu().numpy()  # [T]
     return influence, ex["context_token_len"]
@@ -56,10 +71,12 @@ def _bin_profile(influence: np.ndarray, ctx_len: int, n_bins: int):
     return sums / counts
 
 
-def run_influence(model, tokenizer, examples, device, cfg, verbose=True) -> Dict[str, Any]:
+def run_influence(model, tokenizer, examples, device, cfg, verbose=True,
+                  metric: str = None) -> Dict[str, Any]:
     n_bins = int(cfg["influence"]["n_bins"])
     mid_lo = float(cfg["influence"]["middle_low"])
     mid_hi = float(cfg["influence"]["middle_high"])
+    metric = metric or cfg["influence"].get("metric", "answer_grad")
     cap = cfg["influence"].get("max_examples")
     if cap is not None and int(cap) < len(examples):
         # Stratified subsample: spread evenly across the (bucket-ordered) examples so
@@ -77,7 +94,7 @@ def run_influence(model, tokenizer, examples, device, cfg, verbose=True) -> Dict
     all_profiles: List[np.ndarray] = []
 
     for i, ex in enumerate(examples):
-        influence, ctx_len = _token_influence(model, ex, device)
+        influence, ctx_len = _token_influence(model, ex, device, metric=metric)
         profile = _bin_profile(influence, ctx_len, n_bins)
         all_profiles.append(profile)
         profiles_by_bucket[ex["position_bucket"]].append(profile)
@@ -122,6 +139,7 @@ def run_influence(model, tokenizer, examples, device, cfg, verbose=True) -> Dict
 
     global_profile = np.stack(all_profiles, axis=0).mean(axis=0)
     return {
+        "metric": metric,
         "per_example": per_example,
         "by_bucket": by_bucket,
         "bin_centers": bin_centers.tolist(),

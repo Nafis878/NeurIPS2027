@@ -24,7 +24,43 @@ positional encoding, as a geometric property of the causal decoder with residual
 4. Open question: *"the upper bound of the Score Pathway's ability to override the topological
    baseline under aggressive, position-targeted fine-tuning remains an open empirical question."*
 
-## Our thesis: **"Found in the Middle by Design"**
+## NeurIPS novelty thesis: **"Born Lost, Born Legible, Born Curable"**
+
+Executing their suggested future work (loss weighting) is *not novel enough* — it is literally
+their suggestion. The novel program attacks the two things they treat as **fixed**: the unmeasured
+link to accuracy, and the *immutable* birthright. Two flagship claims:
+
+**N1 — Legible at birth (a new predictive law + a correction of their U-shape).** The random-init
+(Step-0) influence fingerprint **forecasts the trained model's per-position retrieval accuracy** —
+before any training or data. Crucially we find a **decomposition they miss**: at random init the
+attention is uniform (Cesàro), so there is *no distance-decay* and the fingerprint is **primacy-only**
+(monotonic), **not** the full U. So lost-in-the-middle is *two* phenomena:
+- a **birthright** primacy-tail + middle-collapse, **forecastable at init**, and
+- a **learned recency wall** that emerges during training (absent at birth).
+
+  *Real result (Pythia-70m, ctx 1024, 550 ex):* over the architectural region (x≤0.7),
+  **Spearman(Step-0 fingerprint, trained accuracy) = 0.85, p=0.016**; full-range ρ falls to 0.38
+  precisely because of the learned recency recovery (recency_gap = +0.067). This *sharpens* the
+  paper, whose Step-0 "U-shape" conflates the final-token residual anchor with retrieval recency —
+  we show the recency benefit for non-final facts is **not** a birthright. (`scripts/09_fingerprint.py`)
+  Made causal by a **depth sweep** (Pythia 70m/160m/410m = 6/12/24 layers): their O(1/(H−1)!) predicts
+  deeper → deeper birth-valley → worse trained middle; the fingerprint should track it. (`--depth-trend`)
+
+**N2 — Curable at birth (intervene on the prior, not the loss).** They model each layer as
+`N=(1−α)I+αM` and treat it as fixed. We make it an **editable knob**: (a) **residual-α reshaping** —
+forward hooks scaling each block's residual branch, with the schedule chosen to **minimize the Step-0
+valley** (the fingerprint as a *design target*); and (b) **distributed anchor registers** — inject
+anchor tokens through the context so every region gets a local readout anchor (the mechanism that
+rescues the end). Bake-off vs standard FT and the loss-weighting winner, at matched compute, asks:
+**does editing the initialization prior beat training-time fixes on middle retrieval?**
+(`src/architecture.py`, `scripts/10_cure_bakeoff.py`)
+
+**Unifying idea (the out-of-the-box bit):** the Step-0 fingerprint is *both a diagnostic and a design
+target* — it predicts failure (N1) and we minimize it at init to cure failure (N2). No prior work
+predicts trained retrieval from random weights, nor edits the initialization prior to fix
+lost-in-the-middle.
+
+## Foundation (Phase-1, done): "Found in the Middle by Design"
 
 We take their architectural-prior baseline as given and answer their open question empirically.
 Three claims, each mapped to a disclaimer above:

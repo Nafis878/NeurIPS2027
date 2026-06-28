@@ -1,0 +1,2 @@
+label,model_layers,metric,spearman_arch_region,p_arch_region,spearman_full_range,spearman_fingerprint_vs_logprob,pearson_arch_region,recency_gap_late_minus_mid,step0_valley_depth,trained_middle_acc,n_buckets,region_threshold
+pythia-70m,6,answer_grad,0.8468812149338255,0.016197127467871632,0.37529488475553446,0.3249907754251902,0.8971659855007791,0.0667,0.7843752567256422,0.04,11,0.7

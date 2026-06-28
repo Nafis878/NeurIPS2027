@@ -123,6 +123,61 @@ def plot_loss_curve(history: List[Dict[str, Any]], out_path: str, title: str):
     return out_path
 
 
+def plot_fingerprint_scatter(rows: List[Dict[str, Any]], out_path: str, title: str,
+                             region_thr: float = 0.7):
+    """Scatter: Step-0 fingerprint (x) vs trained accuracy (y), one point per position bucket,
+    colored by normalized position. Circles = architectural region (x<=thr, where the birthright
+    fingerprint forecasts accuracy); X markers = learned-recency region (x>thr).
+    """
+    _ensure(out_path)
+    fig, ax = plt.subplots(figsize=(6.8, 5))
+    arch = [r for r in rows if r["mean_norm_pos"] <= region_thr]
+    late = [r for r in rows if r["mean_norm_pos"] > region_thr]
+    if arch:
+        ax.scatter([r["fingerprint"] for r in arch], [r["trained_accuracy"] for r in arch],
+                   c=[r["mean_norm_pos"] for r in arch], cmap="viridis", s=80, marker="o",
+                   edgecolor="k", linewidth=0.4, label=f"architectural region (x<={region_thr})")
+    if late:
+        ax.scatter([r["fingerprint"] for r in late], [r["trained_accuracy"] for r in late],
+                   c=[r["mean_norm_pos"] for r in late], cmap="viridis", s=90, marker="X",
+                   edgecolor="k", linewidth=0.4, label="learned-recency region (x>thr)")
+    for r in rows:
+        ax.annotate(f"{r['mean_norm_pos']:.2f}", (r["fingerprint"], r["trained_accuracy"]),
+                    fontsize=7, xytext=(3, 3), textcoords="offset points")
+    ax.set_xlabel("Step-0 influence fingerprint (random init)")
+    ax.set_ylabel("Trained exact-match accuracy")
+    ax.set_title(title)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+    return out_path
+
+
+def plot_depth_trend(summaries: List[Dict[str, Any]], out_path: str, title: str):
+    """Dual-axis: Step-0 valley depth and trained middle accuracy vs. model depth (#layers)."""
+    _ensure(out_path)
+    L = [float(s["model_layers"]) for s in summaries]
+    depth = [float(s["step0_valley_depth"]) for s in summaries]
+    mid = [float(s["trained_middle_acc"]) for s in summaries]
+    fig, ax1 = plt.subplots(figsize=(7, 4.6))
+    ax1.plot(L, depth, "o-", color="#9467bd", label="Step-0 valley depth")
+    ax1.set_xlabel("Depth (number of layers, H)")
+    ax1.set_ylabel("Step-0 valley depth", color="#9467bd")
+    ax1.tick_params(axis="y", labelcolor="#9467bd")
+    ax2 = ax1.twinx()
+    ax2.plot(L, mid, "s--", color="#d62728", label="trained middle accuracy")
+    ax2.set_ylabel("Trained middle accuracy", color="#d62728")
+    ax2.tick_params(axis="y", labelcolor="#d62728")
+    ax1.set_title(title)
+    ax1.grid(alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+    return out_path
+
+
 def plot_sweep(rows: List[Dict[str, Any]], out_path: str, title: str,
                control_name: str = "standard"):
     """Grouped bars of middle / average / worst accuracy per sweep config.

@@ -24,6 +24,7 @@ eval:
   out_plots: "outputs/plots"
 
 influence:
+  metric: "answer_grad"          # "answer_grad" (task log-prob gradient) or "jacobian" (paper's input->output Jacobian)
   # Aggregate per-token gradient norms into this many uniform position bins in [0, 1].
   n_bins: 20
   middle_low: 0.4                # middle band for "middle influence mass"
@@ -56,6 +57,24 @@ intervention:
   edge_sigma: 0.08
   inverse_influence: false       # optional: inverse-baseline-influence reweighting
 
+fingerprint:                     # script 09 (Claim 1)
+  region_threshold: 0.7          # x<=thr = architectural region (birthright); x>thr = learned recency
+
+architecture:                    # scripts 09/10 (Claim 2): reprogram the init prior
+  metric: "jacobian"             # influence metric used for the residual-schedule search
+  search_max_examples: 33
+  anchor_interval: 128           # distributed anchor register spacing (tokens)
+  residual_grid:                 # residual-branch scale schedules to search (flatten the valley)
+    # NOTE: uniform scaling is ~ratio-invariant (cannot change valley SHAPE); the effective
+    # levers are moving toward identity (s<1, less causal mixing -> flatter) and non-uniform
+    # depth ramps. We search both directions.
+    - {name: "s0.5",        kind: "uniform", value: 0.5}
+    - {name: "s0.7",        kind: "uniform", value: 0.7}
+    - {name: "s1.5",        kind: "uniform", value: 1.5}
+    - {name: "ramp_2to0.5", kind: "ramp",    value: 2.0, ramp_end: 0.5}
+    - {name: "ramp_0.5to2", kind: "ramp",    value: 0.5, ramp_end: 2.0}
+  bakeoff_arms: ["standard", "loss_edgefloor", "resid_alpha", "anchors"]
+
 # Experiment 5 (script 08): sweep over weighting configs with matched compute.
 # Each entry trains a fresh model, evaluates accuracy vs position, and is scored on
 # middle accuracy without regressing average/worst accuracy vs the 'standard' control.
@@ -86,3 +105,10 @@ smoke:
     batch_size: 4
   sweep:
     max_configs: 3              # only run the first few configs during smoke tests
+  architecture:
+    search_max_examples: 12
+    anchor_interval: 64
+    residual_grid:
+      - {name: "s1.5", kind: "uniform", value: 1.5}
+      - {name: "s2.0", kind: "uniform", value: 2.0}
+    bakeoff_arms: ["standard", "resid_alpha", "anchors"]

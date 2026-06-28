@@ -29,6 +29,15 @@ whole context is the answer code, exact-match retrieval is a clean signal.
 | 6. Report + comparisons | `06_make_report.py` | `comparison_*.png`, `outputs/results_summary.md` |
 | 7. Step-0 vs trained valley | `07_step0_compare.py` | `influence_step0_vs_trained*.png`, `valley_depth_by_method.csv` |
 | 8. Weighting sweep (β/σ/edge-floor) | `08_sweep_intervention.py` | `sweep_intervention.csv`, `sweep_intervention_accuracy.png` |
+| 9. Fingerprint (Claim 1) | `09_fingerprint.py` | `fingerprint_<label>.csv`, `fingerprint_scatter_*.png`, `depth_trend.*` |
+| 10. Cure bake-off (Claim 2) | `10_cure_bakeoff.py` | `cure_bakeoff.csv`, `cure_bakeoff_accuracy.png` |
+
+**NeurIPS novelty program — "Born Lost, Born Legible, Born Curable":** stages 9–10 go beyond the
+paper's stated future work. **N1 (legible):** the random-init influence *fingerprint* forecasts the
+trained model's per-position accuracy over the architectural region (Pythia-70m: Spearman 0.85,
+p=0.016), and the recency half is shown to be *learned*, not present at birth. **N2 (curable):** edit
+the initialization prior (residual-α reshaping and/or distributed anchor registers) and test whether
+it beats training-time fixes. See [docs/BEATING_THE_PAPER.md](docs/BEATING_THE_PAPER.md).
 
 This project is positioned to **beat** "Lost in the Middle at Birth" (Chowdhury, arXiv:2603.10123)
 by answering its stated open question — see [docs/BEATING_THE_PAPER.md](docs/BEATING_THE_PAPER.md).
@@ -63,7 +72,22 @@ even when a 70M model scores ~0 EM.
    !python scripts/07_step0_compare.py       --config configs/default.yaml
    # Weighting sweep (beta / sigma / edge-floor) to find a NET middle-accuracy win:
    !python scripts/08_sweep_intervention.py  --config configs/default.yaml
+   # Claim 1 (fingerprint): random-init influence predicts trained accuracy
+   !python scripts/09_fingerprint.py         --config configs/default.yaml --label pythia-70m
+   # Claim 2 (cure bake-off): init-time reshaping vs loss-weighting vs standard
+   !python scripts/10_cure_bakeoff.py        --config configs/default.yaml
    ```
+
+   **Depth law (Claim 1, causal):** Pythia models share the GPT-NeoX tokenizer, so the dataset is
+   reused across sizes. For each size, re-measure Step-0 + standard FT + fingerprint, then aggregate:
+   ```python
+   for M, L in [("EleutherAI/pythia-70m","70m"), ("EleutherAI/pythia-160m","160m"), ("EleutherAI/pythia-410m","410m")]:
+       !python scripts/03_measure_influence.py --config configs/default.yaml --init-random --model $M
+       !python scripts/04_train_standard.py    --config configs/default.yaml --model $M
+       !python scripts/09_fingerprint.py       --config configs/default.yaml --label $L
+   !python scripts/09_fingerprint.py --config configs/default.yaml --depth-trend
+   ```
+   (410m is optional on a T4 — use a small `train.batch_size` if memory is tight.)
    `--init-random` measures the influence valley on a randomly-initialized (untrained) model at
    the **same context length** as the trained runs, so stage 7 compares all four profiles
    (Step-0 / pretrained / standard-FT / intervention) apples-to-apples.

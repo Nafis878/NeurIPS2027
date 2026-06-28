@@ -27,13 +27,22 @@ def main():
     ap.add_argument("--init-random", action="store_true",
                     help="Measure the Step-0 architectural prior on a RANDOMLY-INITIALIZED "
                          "(untrained) model instead of the pretrained one.")
+    ap.add_argument("--metric", choices=["answer_grad", "jacobian"], default=None,
+                    help="Influence proxy: 'answer_grad' (task log-prob gradient) or 'jacobian' "
+                         "(the paper's input->output Jacobian; U-shaped fingerprint).")
     args = ap.parse_args()
 
     cfg = load_config(args.config, smoke=args.smoke)
     cfg = apply_overrides(cfg, {"model": args.model})
+    if args.metric:
+        cfg["influence"]["metric"] = args.metric
     set_seed(cfg["seed"])
 
-    tag = args.tag or ("step0_init" if args.init_random else "baseline")
+    metric = cfg["influence"].get("metric", "answer_grad")
+    default_tag = ("step0_init" if args.init_random else "baseline")
+    if metric == "jacobian":
+        default_tag += "_jac"
+    tag = args.tag or default_tag
 
     examples = _load_dataset(cfg)
     device = pick_device()

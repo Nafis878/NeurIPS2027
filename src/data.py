@@ -122,6 +122,46 @@ def generate_dataset(cfg: Dict[str, Any], tokenizer, seed: int) -> List[Dict[str
     return examples
 
 
+def insert_anchors(examples: List[Dict[str, Any]], tokenizer, k: int,
+                   anchor_id: int = None) -> List[Dict[str, Any]]:
+    """Inject a distributed 'anchor register' token every ``k`` context tokens.
+
+    Claim-2 mechanism B: the architecture rescues the *end* of the context because the final
+    token is adjacent to the readout (a recency anchor). Distributing anchor tokens through the
+    context gives every region its own local readout anchor. We re-tokenize positions and
+    recompute ``fact_code_span`` / ``norm_pos`` so downstream eval/influence stay correct.
+    """
+    if anchor_id is None:
+        anchor_id = tokenizer.eos_token_id
+    out = []
+    for ex in examples:
+        ctx_len = ex["context_token_len"]
+        ctx = ex["input_ids"][:ctx_len]
+        tail = ex["input_ids"][ctx_len:]
+        c0, c1 = ex["fact_code_span"]
+        new_ctx, new_c0, new_c1 = [], None, None
+        for i, tok in enumerate(ctx):
+            if i % k == 0:
+                new_ctx.append(anchor_id)
+            if i == c0:
+                new_c0 = len(new_ctx)
+            if i == c1:
+                new_c1 = len(new_ctx)
+            new_ctx.append(tok)
+        if new_c1 is None:
+            new_c1 = len(new_ctx)
+        new_ctx_len = len(new_ctx)
+        e = dict(ex)
+        e["input_ids"] = new_ctx + tail
+        e["context_token_len"] = new_ctx_len
+        e["fact_code_span"] = [new_c0, new_c1]
+        e["norm_pos"] = new_c0 / max(1, new_ctx_len - 1)
+        e["prompt_text"] = tokenizer.decode(e["input_ids"])
+        e["n_anchors"] = (ctx_len + k - 1) // k
+        out.append(e)
+    return out
+
+
 def dataset_filename(cfg: Dict[str, Any]) -> str:
     ctx = int(cfg["data"]["context_length"])
     n = int(cfg["data"]["examples_per_position"])

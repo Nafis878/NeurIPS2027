@@ -92,3 +92,43 @@ def test_count(tokenizer):
     cfg = _cfg(ctx=128, n=4)
     examples = data.generate_dataset(cfg, tokenizer, seed=0)
     assert len(examples) == 4 * len(cfg["data"]["position_buckets"])
+
+
+def test_insert_anchors_preserves_answer(tokenizer):
+    cfg = _cfg(ctx=192, n=2)
+    examples = data.generate_dataset(cfg, tokenizer, seed=5)
+    anchored = data.insert_anchors(examples, tokenizer, k=32)
+    for orig, ex in zip(examples, anchored):
+        # answer still recoverable from the (shifted) code span
+        s, e = ex["fact_code_span"]
+        assert tokenizer.decode(ex["input_ids"][s:e]).strip() == ex["answer"]
+        # context grew by the number of inserted anchors; positions stay normalized
+        assert ex["context_token_len"] > orig["context_token_len"]
+        assert 0.0 <= ex["norm_pos"] <= 1.0
+        assert e <= ex["context_token_len"]
+
+
+def test_residual_hook_math():
+    import torch
+    import torch.nn as nn
+    from src import architecture
+
+    class Doubler(nn.Module):  # h_out = 2*h_in  (so delta = h_in)
+        def forward(self, x):
+            return (x * 2,)
+
+    blk = Doubler()
+    x = torch.ones(1, 3, 4)
+    assert torch.allclose(blk(x)[0], x * 2)
+    h = blk.register_forward_hook(architecture._residual_hook(0.5))
+    # new = h_in + 0.5*(h_out - h_in) = 1 + 0.5*(2-1) = 1.5
+    out = blk(x)[0]
+    h.remove()
+    assert torch.allclose(out, x * 1.5)
+
+
+def test_make_schedule():
+    from src import architecture
+    assert architecture.make_schedule(4, "uniform", 1.5) == [1.5, 1.5, 1.5, 1.5]
+    ramp = architecture.make_schedule(3, "ramp", 1.0, 2.0)
+    assert abs(ramp[0] - 1.0) < 1e-9 and abs(ramp[-1] - 2.0) < 1e-9
