@@ -1,0 +1,5 @@
+method,edge_peak,middle_floor,valley_depth,middle_over_recency,peak_to_trough,middle_mass
+step0_init,0.21755,0.04691,0.78438,1.13978,5.28595,0.15095
+baseline,1.30066,0.18483,0.8579,0.1421,9.95749,0.1122
+standard_finetune,0.01037,0.00105,0.89834,0.10166,39.57937,0.13166
+intervention,0.0346,0.00416,0.87967,0.18273,17.40023,0.08716
