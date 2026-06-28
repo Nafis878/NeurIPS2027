@@ -1,8 +1,8 @@
 {
   "model_for_tokenizer": "EleutherAI/pythia-70m",
-  "n_examples": 55,
-  "examples_per_position": 5,
-  "context_length": 256,
+  "n_examples": 550,
+  "examples_per_position": 50,
+  "context_length": 1024,
   "position_buckets": [
     0.02,
     0.05,
@@ -16,6 +16,6 @@
     0.95,
     0.98
   ],
-  "dataset_file": "dataset_ctx256_n5.jsonl",
-  "smoke": true
+  "dataset_file": "dataset_ctx1024_n50.jsonl",
+  "smoke": false
 }

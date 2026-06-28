@@ -8,6 +8,10 @@ __pycache__/
 # Large, regeneratable model checkpoints (273 MB each) -- do NOT commit.
 outputs/checkpoints/
 
+# Large result archives (exceed GitHub's 100 MB limit)
+*.zip
+NeurIPS2027_outputs.zip
+
 # Local environment
 .venv/
 venv/

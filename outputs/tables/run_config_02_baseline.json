@@ -1,12 +1,9 @@
 {
   "config": {
-    "seed": 1234,
-    "model": {
-      "name": "EleutherAI/pythia-70m",
-      "fallback": "gpt2",
-      "dtype": "float32"
-    },
     "data": {
+      "context_length": 1024,
+      "examples_per_position": 50,
+      "out_dir": "/content/drive/MyDrive/NeurIPS2027_outputs/data/synthetic",
       "position_buckets": [
         0.02,
         0.05,
@@ -19,55 +16,57 @@
         0.9,
         0.95,
         0.98
-      ],
-      "context_length": 256,
-      "examples_per_position": 5,
-      "out_dir": "data/synthetic"
+      ]
     },
     "eval": {
+      "batch_size": 8,
       "max_new_tokens": 8,
-      "batch_size": 4,
-      "out_tables": "outputs/tables",
-      "out_plots": "outputs/plots"
+      "out_plots": "/content/drive/MyDrive/NeurIPS2027_outputs/outputs/plots",
+      "out_tables": "/content/drive/MyDrive/NeurIPS2027_outputs/outputs/tables"
     },
     "influence": {
-      "n_bins": 20,
-      "middle_low": 0.4,
+      "max_examples": null,
       "middle_high": 0.6,
-      "max_examples": 22,
-      "out_tables": "outputs/tables",
-      "out_plots": "outputs/plots"
-    },
-    "train": {
-      "epochs": 1,
-      "max_steps": 8,
-      "lr": 5e-05,
-      "batch_size": 2,
-      "weight_decay": 0.0,
-      "warmup_steps": 0,
-      "grad_clip": 1.0,
-      "log_every": 1,
-      "loss_on": "answer",
-      "ckpt_dir": "outputs/checkpoints",
-      "out_tables": "outputs/tables",
-      "out_plots": "outputs/plots"
+      "middle_low": 0.4,
+      "n_bins": 20,
+      "out_plots": "/content/drive/MyDrive/NeurIPS2027_outputs/outputs/plots",
+      "out_tables": "/content/drive/MyDrive/NeurIPS2027_outputs/outputs/tables"
     },
     "intervention": {
       "beta": 2.0,
-      "sigma": 0.18,
-      "inverse_influence": false
+      "inverse_influence": false,
+      "sigma": 0.18
+    },
+    "model": {
+      "dtype": "float32",
+      "fallback": "gpt2",
+      "name": "EleutherAI/pythia-70m"
+    },
+    "seed": 1234,
+    "train": {
+      "batch_size": 4,
+      "ckpt_dir": "/content/drive/MyDrive/NeurIPS2027_outputs/outputs/checkpoints",
+      "epochs": 3,
+      "grad_clip": 1.0,
+      "log_every": 1,
+      "loss_on": "answer",
+      "lr": 5e-05,
+      "max_steps": null,
+      "out_plots": "/content/drive/MyDrive/NeurIPS2027_outputs/outputs/plots",
+      "out_tables": "/content/drive/MyDrive/NeurIPS2027_outputs/outputs/tables",
+      "warmup_steps": 0,
+      "weight_decay": 0.0
     },
     "_meta": {
-      "config_path": "C:\\Users\\UseR\\Downloads\\NeurIPS 2027\\configs\\default.yaml",
-      "smoke": true
+      "config_path": "/content/NeurIPS2027/configs/default.yaml",
+      "smoke": false
     }
   },
   "run_meta": {
-    "saved_at": "2026-06-28 18:38:57",
+    "saved_at": "2026-06-28 13:03:56",
     "argv": [
-      "scripts/02_eval_baseline.py",
-      "--smoke"
+      "scripts/02_eval_baseline.py"
     ],
-    "python": "3.10.4"
+    "python": "3.12.13"
   }
 }
