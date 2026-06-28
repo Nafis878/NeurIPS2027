@@ -16,10 +16,44 @@ def position_weight(x: float, beta: float = 2.0, sigma: float = 0.18) -> float:
     return 1.0 + beta * math.exp(-((x - 0.5) ** 2) / (2 * sigma ** 2))
 
 
+def position_weight_edges(x: float, beta: float = 2.0, sigma: float = 0.18,
+                          edge_gamma: float = 0.0, edge_sigma: float = 0.08) -> float:
+    """Middle bump PLUS an optional 'edge-floor': Gaussian bumps at x=0 and x=1.
+
+    The edge term protects the primacy/recency positions so that up-weighting the
+    middle does not cannibalize edge accuracy (the failure mode seen at beta>0,
+    edge_gamma=0). With edge_gamma>0 the weight profile becomes a gentle 'W': both the
+    middle and the extreme edges are emphasized, only the shoulders are relatively de-emphasized.
+    """
+    mid = beta * math.exp(-((x - 0.5) ** 2) / (2 * sigma ** 2))
+    edge = edge_gamma * (math.exp(-(x ** 2) / (2 * edge_sigma ** 2))
+                         + math.exp(-((x - 1.0) ** 2) / (2 * edge_sigma ** 2)))
+    return 1.0 + mid + edge
+
+
+def make_weight_fn(spec: Dict[str, Any]) -> Optional[Callable[[Dict[str, Any]], float]]:
+    """Build a per-example weight fn from a spec dict.
+
+    spec keys: beta, sigma, edge_gamma, edge_sigma. If beta and edge_gamma are both 0
+    the function is the identity (returns None == ordinary uniform-weighted training).
+    """
+    beta = float(spec.get("beta", 0.0))
+    sigma = float(spec.get("sigma", 0.18))
+    edge_gamma = float(spec.get("edge_gamma", 0.0))
+    edge_sigma = float(spec.get("edge_sigma", 0.08))
+    if beta == 0.0 and edge_gamma == 0.0:
+        return None
+    return lambda ex: position_weight_edges(ex["norm_pos"], beta=beta, sigma=sigma,
+                                            edge_gamma=edge_gamma, edge_sigma=edge_sigma)
+
+
 def middle_weight_fn(cfg: Dict[str, Any]) -> Callable[[Dict[str, Any]], float]:
     beta = float(cfg["intervention"]["beta"])
     sigma = float(cfg["intervention"]["sigma"])
-    return lambda ex: position_weight(ex["norm_pos"], beta=beta, sigma=sigma)
+    edge_gamma = float(cfg["intervention"].get("edge_gamma", 0.0))
+    edge_sigma = float(cfg["intervention"].get("edge_sigma", 0.08))
+    return lambda ex: position_weight_edges(ex["norm_pos"], beta=beta, sigma=sigma,
+                                            edge_gamma=edge_gamma, edge_sigma=edge_sigma)
 
 
 def inverse_influence_weights(

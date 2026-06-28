@@ -28,6 +28,7 @@ whole context is the answer code, exact-match retrieval is a clean signal.
 | 5. Middle-weighted intervention | `05_train_middle_weighted.py` | `*_intervention.png` |
 | 6. Report + comparisons | `06_make_report.py` | `comparison_*.png`, `outputs/results_summary.md` |
 | 7. Step-0 vs trained valley | `07_step0_compare.py` | `influence_step0_vs_trained*.png`, `valley_depth_by_method.csv` |
+| 8. Weighting sweep (β/σ/edge-floor) | `08_sweep_intervention.py` | `sweep_intervention.csv`, `sweep_intervention_accuracy.png` |
 
 This project is positioned to **beat** "Lost in the Middle at Birth" (Chowdhury, arXiv:2603.10123)
 by answering its stated open question — see [docs/BEATING_THE_PAPER.md](docs/BEATING_THE_PAPER.md).
@@ -60,6 +61,8 @@ even when a 70M model scores ~0 EM.
    # Step-0 architectural-prior experiment (beats the paper's open question):
    !python scripts/03_measure_influence.py   --config configs/default.yaml --init-random
    !python scripts/07_step0_compare.py       --config configs/default.yaml
+   # Weighting sweep (beta / sigma / edge-floor) to find a NET middle-accuracy win:
+   !python scripts/08_sweep_intervention.py  --config configs/default.yaml
    ```
    `--init-random` measures the influence valley on a randomly-initialized (untrained) model at
    the **same context length** as the trained runs, so stage 7 compares all four profiles

@@ -49,7 +49,24 @@ train:
 intervention:
   beta: 2.0
   sigma: 0.18
+  edge_gamma: 0.0                # edge-floor strength (0 = original middle-only weighting)
+  edge_sigma: 0.08
   inverse_influence: false       # optional: inverse-baseline-influence reweighting
+
+# Experiment 5 (script 08): sweep over weighting configs with matched compute.
+# Each entry trains a fresh model, evaluates accuracy vs position, and is scored on
+# middle accuracy without regressing average/worst accuracy vs the 'standard' control.
+sweep:
+  out_tables: "outputs/tables"
+  out_plots: "outputs/plots"
+  configs:
+    - {name: "standard",       beta: 0.0, sigma: 0.18, edge_gamma: 0.0, edge_sigma: 0.08}
+    - {name: "mid_default",    beta: 2.0, sigma: 0.18, edge_gamma: 0.0, edge_sigma: 0.08}
+    - {name: "mid_strong",     beta: 4.0, sigma: 0.18, edge_gamma: 0.0, edge_sigma: 0.08}
+    - {name: "mid_wide",       beta: 2.0, sigma: 0.25, edge_gamma: 0.0, edge_sigma: 0.08}
+    - {name: "mid_narrow",     beta: 2.0, sigma: 0.12, edge_gamma: 0.0, edge_sigma: 0.08}
+    - {name: "edgefloor",      beta: 2.0, sigma: 0.18, edge_gamma: 1.0, edge_sigma: 0.08}
+    - {name: "edgefloor_strong", beta: 3.0, sigma: 0.18, edge_gamma: 1.5, edge_sigma: 0.08}
 
 # Deep-merged on top of the above when --smoke is passed. Tiny + CPU-safe.
 smoke:
@@ -64,3 +81,5 @@ smoke:
     batch_size: 2
   eval:
     batch_size: 4
+  sweep:
+    max_configs: 3              # only run the first few configs during smoke tests

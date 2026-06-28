@@ -123,6 +123,42 @@ def plot_loss_curve(history: List[Dict[str, Any]], out_path: str, title: str):
     return out_path
 
 
+def plot_sweep(rows: List[Dict[str, Any]], out_path: str, title: str,
+               control_name: str = "standard"):
+    """Grouped bars of middle / average / worst accuracy per sweep config.
+
+    ``rows`` each have: name, middle_acc, avg_acc, worst_acc. The control config is
+    marked so the reader can see which variants beat ordinary fine-tuning.
+    """
+    import numpy as np
+    _ensure(out_path)
+    names = [r["name"] for r in rows]
+    middle = [r["middle_acc"] for r in rows]
+    avg = [r["avg_acc"] for r in rows]
+    worst = [r["worst_acc"] for r in rows]
+    x = np.arange(len(names))
+    w = 0.27
+    fig, ax = plt.subplots(figsize=(max(7, 1.3 * len(names)), 4.8))
+    ax.bar(x - w, middle, w, label="middle acc", color="#d62728")
+    ax.bar(x, avg, w, label="avg acc", color="#1f77b4")
+    ax.bar(x + w, worst, w, label="worst acc", color="#7f7f7f")
+    # control reference lines
+    ctrl = next((r for r in rows if r["name"] == control_name), None)
+    if ctrl is not None:
+        ax.axhline(ctrl["middle_acc"], color="#d62728", ls="--", lw=0.9, alpha=0.6)
+        ax.axhline(ctrl["avg_acc"], color="#1f77b4", ls="--", lw=0.9, alpha=0.6)
+    ax.set_xticks(x)
+    ax.set_xticklabels(names, rotation=30, ha="right", fontsize=8)
+    ax.set_ylabel("Exact-match accuracy")
+    ax.set_title(title + f"  (dashed = '{control_name}' control)")
+    ax.grid(alpha=0.3, axis="y")
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+    return out_path
+
+
 def plot_comparison(methods: Dict[str, List[Dict[str, Any]]], out_path: str, title: str,
                     metric: str, ylabel: str):
     _ensure(out_path)
