@@ -1,0 +1,12 @@
+{
+  "spearman_influence_vs_accuracy": {
+    "rho": NaN,
+    "p": NaN,
+    "n": 11
+  },
+  "spearman_influence_vs_logprob": {
+    "rho": 0.17272727272727276,
+    "p": 0.6115423848512369,
+    "n": 11
+  }
+}

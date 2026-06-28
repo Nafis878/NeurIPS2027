@@ -1,0 +1,66 @@
+# Default configuration for the position-bias / middle-context retrieval experiment.
+# Every script loads this and may override individual keys via CLI flags.
+# A `--smoke` flag deep-merges the `smoke:` block on top of these values.
+
+seed: 1234
+
+model:
+  name: "EleutherAI/pythia-70m"   # preferred
+  fallback: "gpt2"                # used automatically if `name` fails to load
+  dtype: "float32"                # "float32" or "float16" (float16 only honored on CUDA)
+
+data:
+  # Normalized position buckets (fraction of the context length) at which the
+  # answer-critical fact is inserted.
+  position_buckets: [0.02, 0.05, 0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 0.95, 0.98]
+  context_length: 1024           # target token length of the distractor context
+  examples_per_position: 50      # real run; smoke overrides to 5
+  out_dir: "data/synthetic"
+
+eval:
+  max_new_tokens: 8
+  batch_size: 8                  # generation batch size (auto-halved on CUDA OOM)
+  out_tables: "outputs/tables"
+  out_plots: "outputs/plots"
+
+influence:
+  # Aggregate per-token gradient norms into this many uniform position bins in [0, 1].
+  n_bins: 20
+  middle_low: 0.4                # middle band for "middle influence mass"
+  middle_high: 0.6
+  max_examples: null             # cap examples processed (null = all); smoke sets a small cap
+  out_tables: "outputs/tables"
+  out_plots: "outputs/plots"
+
+train:
+  epochs: 3
+  max_steps: null                # if set, caps total optimizer steps
+  lr: 5.0e-5
+  batch_size: 4                  # auto-halved on CUDA OOM
+  weight_decay: 0.0
+  warmup_steps: 0
+  grad_clip: 1.0
+  log_every: 1
+  loss_on: "answer"              # "answer" (span only) or "full"
+  ckpt_dir: "outputs/checkpoints"
+  out_tables: "outputs/tables"
+  out_plots: "outputs/plots"
+
+intervention:
+  beta: 2.0
+  sigma: 0.18
+  inverse_influence: false       # optional: inverse-baseline-influence reweighting
+
+# Deep-merged on top of the above when --smoke is passed. Tiny + CPU-safe.
+smoke:
+  data:
+    context_length: 256
+    examples_per_position: 5
+  influence:
+    max_examples: 22
+  train:
+    epochs: 1
+    max_steps: 8
+    batch_size: 2
+  eval:
+    batch_size: 4

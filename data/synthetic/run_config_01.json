@@ -1,0 +1,73 @@
+{
+  "config": {
+    "seed": 1234,
+    "model": {
+      "name": "EleutherAI/pythia-70m",
+      "fallback": "gpt2",
+      "dtype": "float32"
+    },
+    "data": {
+      "position_buckets": [
+        0.02,
+        0.05,
+        0.1,
+        0.2,
+        0.35,
+        0.5,
+        0.65,
+        0.8,
+        0.9,
+        0.95,
+        0.98
+      ],
+      "context_length": 256,
+      "examples_per_position": 5,
+      "out_dir": "data/synthetic"
+    },
+    "eval": {
+      "max_new_tokens": 8,
+      "batch_size": 4,
+      "out_tables": "outputs/tables",
+      "out_plots": "outputs/plots"
+    },
+    "influence": {
+      "n_bins": 20,
+      "middle_low": 0.4,
+      "middle_high": 0.6,
+      "max_examples": 22,
+      "out_tables": "outputs/tables",
+      "out_plots": "outputs/plots"
+    },
+    "train": {
+      "epochs": 1,
+      "max_steps": 8,
+      "lr": 5e-05,
+      "batch_size": 2,
+      "weight_decay": 0.0,
+      "warmup_steps": 0,
+      "grad_clip": 1.0,
+      "log_every": 1,
+      "loss_on": "answer",
+      "ckpt_dir": "outputs/checkpoints",
+      "out_tables": "outputs/tables",
+      "out_plots": "outputs/plots"
+    },
+    "intervention": {
+      "beta": 2.0,
+      "sigma": 0.18,
+      "inverse_influence": false
+    },
+    "_meta": {
+      "config_path": "C:\\Users\\UseR\\Downloads\\NeurIPS 2027\\configs\\default.yaml",
+      "smoke": true
+    }
+  },
+  "run_meta": {
+    "saved_at": "2026-06-28 18:36:00",
+    "argv": [
+      "scripts/01_generate_dataset.py",
+      "--smoke"
+    ],
+    "python": "3.10.4"
+  }
+}

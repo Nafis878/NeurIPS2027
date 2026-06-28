@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Large, regeneratable model checkpoints (273 MB each) -- do NOT commit.
+outputs/checkpoints/
+
+# Local environment
+.venv/
+venv/
+.env
+
+# Keep smoke-run plots/tables and results_summary.md committed as a demo.
+# Generated datasets are kept (small) so the repo is inspectable; remove the next
+# line's leading '#' if you prefer not to track them.
+# data/synthetic/
