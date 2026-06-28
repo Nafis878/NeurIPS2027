@@ -60,6 +60,28 @@ target* — it predicts failure (N1) and we minimize it at init to cure failure 
 predicts trained retrieval from random weights, nor edits the initialization prior to fix
 lost-in-the-middle.
 
+### Real T4 results (Pythia-70m, ctx 1024, 50/pos) — N1 ✓, N2 partial
+- **N1 ✓ confirmed.** `spearman_arch_region = 0.847, p = 0.016`; full-range = 0.375;
+  `recency_gap = +0.067` → the birthright (primacy+middle) is legible at init; recency is learned.
+- **The prior is editable (mechanism ✓).** Residual schedule search on the random-init model:
+  `ramp_2to0.5` flattens the Step-0 valley (valley_depth 0.799→0.693, **peak/trough 5.85→3.61**);
+  uniform scaling is inert (ratio-invariant); the opposite ramp deepens it. So the geometric prior's
+  *shape* is controllable by a per-layer residual schedule — a result the paper's "immutable
+  birthright" framing did not anticipate.
+- **Cure bake-off (`cure_bakeoff.csv`), accuracy:** standard middle=0.04/avg=0.013;
+  **loss_edgefloor middle=0.12/avg=0.098** (best); **anchors (init-time data cure) middle=0.08/
+  avg=0.067/worst=0.02** — beats standard on *all* metrics and is the only arm with worst>0;
+  **resid_alpha middle=0.00/avg=0.018** — did *not* help.
+- **Honest N2 finding (a real scientific result, not a failure):** *flattening the Step-0 influence
+  valley does not by itself cure retrieval.* Distributed **anchor registers** (an init-time *data*
+  intervention) work; **residual reshaping of a pretrained model under light fine-tuning does not**
+  — expected, since scaling a *pretrained* model's residual branches distorts its learned features
+  and a short FT cannot recover. The clean test (reshape at init, then *pretrain*) needs compute
+  beyond a T4 and is the stated next step. Net: the fingerprint is a strong **diagnostic**; as a
+  **design target** it is actionable via data (anchors) but not via post-hoc residual surgery.
+- **Caveat:** single seed; absolute accuracies vary run-to-run on GPU (this run's `standard` avg=0.013
+  vs the earlier sweep's 0.162). Within-session rankings are the reliable signal. Multi-seed needed.
+
 ## Foundation (Phase-1, done): "Found in the Middle by Design"
 
 We take their architectural-prior baseline as given and answer their open question empirically.
