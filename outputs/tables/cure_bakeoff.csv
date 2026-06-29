@@ -1,5 +1,5 @@
-arm,middle_acc,avg_acc,worst_acc,edge_acc
-standard,0.04,0.0127,0.0,0.0133
-loss_edgefloor,0.12,0.0982,0.0,0.11
-resid_alpha,0.0,0.0182,0.0,0.0267
-anchors,0.08,0.0673,0.02,0.0767
+arm,n_seeds,middle_acc_mean,middle_acc_std,avg_acc_mean,avg_acc_std,worst_acc_mean,worst_acc_std,edge_acc_mean,edge_acc_std
+standard,3,0.1133,0.0757,0.1212,0.1145,0.04,0.0693,0.13,0.1206
+loss_edgefloor,3,0.1533,0.2318,0.2127,0.2993,0.1533,0.2318,0.2233,0.3139
+resid_alpha,3,0.04,0.04,0.0576,0.042,0.0133,0.0231,0.0533,0.0493
+anchors,3,0.0933,0.0924,0.0964,0.1229,0.0467,0.0808,0.1011,0.1348

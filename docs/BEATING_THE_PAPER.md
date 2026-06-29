@@ -60,30 +60,39 @@ target* — it predicts failure (N1) and we minimize it at init to cure failure 
 predicts trained retrieval from random weights, nor edits the initialization prior to fix
 lost-in-the-middle.
 
-### Real T4 results (Pythia-70m, ctx 1024, 50/pos) — N1 ✓, N2 partial
-- **N1 ✓ confirmed.** `spearman_arch_region = 0.847, p = 0.016`; full-range = 0.375;
-  `recency_gap = +0.067` → the birthright (primacy+middle) is legible at init; recency is learned.
-- **The prior is editable (mechanism ✓).** Residual schedule search on the random-init model:
-  `ramp_2to0.5` flattens the Step-0 valley (valley_depth 0.799→0.693, **peak/trough 5.85→3.61**);
-  uniform scaling is inert (ratio-invariant); the opposite ramp deepens it. So the geometric prior's
-  *shape* is controllable by a per-layer residual schedule — a result the paper's "immutable
-  birthright" framing did not anticipate.
-- **Cure bake-off (`cure_bakeoff.csv`), accuracy:** standard middle=0.04/avg=0.013;
-  **loss_edgefloor middle=0.12/avg=0.098** (best); **anchors (init-time data cure) middle=0.08/
-  avg=0.067/worst=0.02** — beats standard on *all* metrics and is the only arm with worst>0;
-  **resid_alpha middle=0.00/avg=0.018** — did *not* help.
-- **Honest N2 finding (a real scientific result, not a failure):** *flattening the Step-0 influence
-  valley does not by itself cure retrieval.* Distributed **anchor registers** (an init-time *data*
-  intervention) work; **residual reshaping of a pretrained model under light fine-tuning does not**
-  — expected, since scaling a *pretrained* model's residual branches distorts its learned features
-  and a short FT cannot recover. The clean test (reshape at init, then *pretrain*) needs compute
-  beyond a T4 and is the stated next step. Net: the fingerprint is a strong **diagnostic**; as a
-  **design target** it is actionable via data (anchors) but not via post-hoc residual surgery.
-- **Caveat:** single seed; absolute accuracies vary run-to-run on GPU (this run's `standard` avg=0.013
-  vs the earlier sweep's 0.162). Within-session rankings are the reliable signal.
-- **Multi-seed harness now available** (`09 --seeds 0,1,2`, `10 --seeds 0,1,2`): reports the
-  fingerprint Spearman and each cure arm's accuracy as mean±std (+ win-rate), so N1 and the anchors
-  result can be made statistically defensible. Run this before quoting final numbers.
+### Real T4 results — UPDATED with 3-seed runs (the single-seed numbers were noise)
+
+**Honest status: at Pythia-70m / 50-per-position, neither N1 (predictive) nor N2 (cure) is
+statistically robust.** The single-seed wins (N1 ρ=0.85; loss-weighting/anchors beating standard)
+do **not** survive 3 seeds. Do not quote the single-seed numbers.
+
+- **N1 — does NOT replicate as a strong claim.** arch-region Spearman = **0.25 ± 0.36** over 3 seeds
+  (per-seed −0.15 / +0.53 / +0.38; one seed negative; win-rate 2/3). `recency_gap = −0.02 ± 0.03`
+  (the earlier +0.067 decomposition signal vanishes). `fingerprint_multiseed_pythia-70m.csv`.
+- **N2 — no cure robustly beats standard.** Middle accuracy (mean ± std, 3 seeds):
+  standard 0.113 ± 0.076; loss_edgefloor 0.153 ± **0.232**; resid_alpha 0.040 ± 0.040;
+  anchors 0.093 ± 0.092. Per-seed is wild (seed-2 loss_edgefloor = 0.42, others ≈ 0–0.04). The
+  variance dwarfs every difference. `resid_alpha` is *consistently worse*; `anchors` ≈ standard.
+  `cure_bakeoff.csv`, `cure_bakeoff_seeds.csv`.
+- **Root cause:** at 50/pos the trained middle accuracy is 1–3 correct out of 50, so seed noise
+  flips bucket accuracy by ±0.02–0.04 — which swamps both the fingerprint correlation and the cure
+  deltas. The experiment is *underpowered*, not (yet) informative about the hypotheses.
+
+**What IS robust (and still worth a claim):**
+- The **Step-0 architectural prior is highly reproducible**: valley_depth = 0.7886 / 0.7837 / 0.7862
+  across seeds (std ≈ 0.002). The birthright *measurement* replicates cleanly (consistent with the
+  paper); it is the link to *trained accuracy* that is noise-dominated at this scale.
+- The prior's **shape is editable**: a depth-decreasing residual schedule (`ramp_2to0.5`) flattens
+  the Step-0 valley (peak/trough 5.85→3.61); uniform scaling is ratio-invariant. (Mechanistic, seed-
+  stable — but flattening it did not improve trained retrieval here.)
+- **Methodological finding:** small-scale lost-in-the-middle interventions are seed-noise-dominated;
+  honest evaluation requires many more examples/position, more seeds, and ideally a model whose
+  trained accuracy is not floored. This is itself a useful caution for the subfield.
+
+**Path to a real result (needed before any submission):** scale to ≥200–500 examples/position (so
+bucket accuracy is estimated to ±0.01), ≥5 seeds, and a larger model (Pythia-410m/1.4b) so middle
+accuracy isn't floored near 0; or switch the predictive target to a less granular signal
+(answer log-prob / rank) that is far less noisy than 0/1 EM at small n.
 
 ## Foundation (Phase-1, done): "Found in the Middle by Design"
 

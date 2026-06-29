@@ -1,0 +1,2 @@
+label,n_seeds,metric,spearman_arch_mean,spearman_arch_std,spearman_full_mean,spearman_full_std,recency_gap_mean,recency_gap_std,win_rate_arch_gt_0
+pythia-70m,3,answer_grad,0.2527,0.3611,0.3444,0.4593,-0.0178,0.027,0.667

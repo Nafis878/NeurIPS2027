@@ -1,0 +1,13 @@
+seed,arm,middle_acc,avg_acc,worst_acc,edge_acc
+0,standard,0.2,0.2473,0.12,0.2567
+0,loss_edgefloor,0.0,0.0091,0.0,0.0067
+0,resid_alpha,0.04,0.1055,0.04,0.11
+0,anchors,0.04,0.0291,0.0,0.0233
+1,standard,0.08,0.0927,0.0,0.1167
+1,loss_edgefloor,0.04,0.0727,0.04,0.08
+1,resid_alpha,0.08,0.04,0.0,0.02
+1,anchors,0.04,0.0218,0.0,0.0233
+2,standard,0.06,0.0236,0.0,0.0167
+2,loss_edgefloor,0.42,0.5564,0.42,0.5833
+2,resid_alpha,0.0,0.0273,0.0,0.03
+2,anchors,0.2,0.2382,0.14,0.2567

@@ -1,0 +1,4 @@
+seed,spearman_arch_region,p_arch_region,spearman_full_range,recency_gap,step0_valley_depth,trained_middle_acc
+0,-0.1543,0.7412,0.1274,-0.0133,0.7886,0.02
+1,0.5345,0.2164,0.872,-0.0467,0.7837,0.06
+2,0.378,0.4032,0.0338,0.0067,0.7862,0.02
